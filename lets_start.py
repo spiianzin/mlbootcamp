@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from sklearn.model_selection import train_test_split
 data = pd.read_csv('crx.data', header=None, na_values='?')
 
 print(data.shape)
@@ -90,3 +90,123 @@ print(feature_names)
 print(X.shape)
 print(y.shape)
 N, d = X.shape
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 11)
+N_train, _ = X_train.shape
+N_test, _ = X_test.shape
+
+print(N_train)
+print(N_test)
+
+from sklearn.neighbors import KNeighborsClassifier
+
+knn = KNeighborsClassifier()
+knn.fit(X_train, y_train)
+
+y_train_predict = knn.predict(X_train)
+y_test_predict = knn.predict(X_test)
+
+err_train = np.mean(y_train != y_train_predict)
+err_test = np.mean(y_test != y_test_predict)
+print(err_train)
+print(err_test)
+
+from sklearn.model_selection import GridSearchCV
+n_neighbors_array = [1, 3, 5, 7, 10, 15]
+knn = KNeighborsClassifier()
+grid = GridSearchCV(knn, param_grid={'n_neighbors' : n_neighbors_array})
+grid.fit(X_train, y_train)
+
+best_cv_err = 1 - grid.best_score_
+best_n_neighbors = grid.best_estimator_.n_neighbors
+print(best_cv_err) 
+print(best_n_neighbors) 
+
+
+knn = KNeighborsClassifier(n_neighbors=best_n_neighbors)
+knn.fit(X_train, y_train)
+
+err_train = np.mean(y_train != knn.predict(X_train))
+err_test  = np.mean(y_test  != knn.predict(X_test))
+print(err_train)
+print(err_test)
+
+from sklearn.svm import SVC
+svc = SVC()
+svc.fit(X_train, y_train)
+
+err_train = np.mean(y_train != svc.predict(X_train))
+err_test  = np.mean(y_test  != svc.predict(X_test))
+print(err_train)
+print(err_test)
+
+
+C_array = np.logspace(-3, 3, num=7)
+gamma_array = np.logspace(-5, 2, num=8)
+svc = SVC(kernel='rbf')
+grid = GridSearchCV(svc, param_grid={'C': C_array, 'gamma': gamma_array})
+grid.fit(X_train, y_train)
+print('CV error    = %f' % (1 - grid.best_score_))
+print('best C      = %f' % (grid.best_estimator_.C))
+print('best gamma  = %f' % (grid.best_estimator_.gamma))
+
+svc = SVC(kernel='rbf', C=grid.best_estimator_.C, gamma=grid.best_estimator_.gamma)
+svc.fit(X_train, y_train)
+
+err_train = np.mean(y_train != svc.predict(X_train))
+err_test  = np.mean(y_test  != svc.predict(X_test))
+print('%f %f' % (err_train, err_test))
+
+C_array = np.logspace(-3, 3, num=7)
+svc = SVC(kernel='linear')
+grid = GridSearchCV(svc, param_grid={'C': C_array})
+grid.fit(X_train, y_train)
+print('best error = %f' % (1 - grid.best_score_))
+print('best C  = %f' % (grid.best_estimator_.C))
+
+svc = SVC(kernel='linear', C=grid.best_estimator_.C)
+svc.fit(X_train, y_train)
+
+err_train = np.mean(y_train != svc.predict(X_train))
+err_test  = np.mean(y_test  != svc.predict(X_test))
+print(err_train)
+print(err_test)
+
+from sklearn import ensemble
+rf = ensemble.RandomForestClassifier(n_estimators=100, random_state=11)
+rf.fit(X_train, y_train)
+
+err_train = np.mean(y_train != rf.predict(X_train))
+err_test  = np.mean(y_test  != rf.predict(X_test))
+print(err_train)
+print(err_test)
+
+importances = rf.feature_importances_
+indices = np.argsort(importances)[::-1]
+
+print("Feature importances:")
+for f, idx in enumerate(indices):
+    print("{:2d}. feature '{:5s}' ({:.4f})".format(f + 1, feature_names[idx], importances[idx]))
+
+
+best_features = indices[:8]
+best_features_names = feature_names[best_features]
+print(best_features_names)
+
+
+gbt = ensemble.GradientBoostingClassifier(n_estimators=100, random_state=11)
+gbt.fit(X_train, y_train)
+
+err_train = np.mean(y_train != gbt.predict(X_train))
+err_test = np.mean(y_test != gbt.predict(X_test))
+print(err_train)
+print(err_test)
+
+
+gbt = ensemble.GradientBoostingClassifier(n_estimators=100, random_state=11)
+gbt.fit(X_train[best_features_names], y_train)
+
+err_train = np.mean(y_train != gbt.predict(X_train[best_features_names]))
+err_test = np.mean(y_test != gbt.predict(X_test[best_features_names]))
+print(err_train)
+print(err_test)
